@@ -1,0 +1,575 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hybrid Summarizer (BERT + T5)</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+      :root {
+        --primary: #667eea;
+        --secondary: #764ba2;
+        --accent: #f093fb;
+        --success: #4ecdc4;
+        --warning: #fce38a;
+        --danger: #ff6b6b;
+        --dark: #2d3748;
+        --light: #f7fafc;
+        --white: #ffffff;
+        --shadow: rgba(102, 126, 234, 0.15);
+        --text-primary: #2d3748;
+        --text-secondary: #718096;
+        --gradient-primary: linear-gradient(135deg, var(--primary), var(--secondary));
+        --gradient-accent: linear-gradient(135deg, var(--accent), var(--success));
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        line-height: 1.6;
+        color: var(--text-primary);
+      }
+
+      .header {
+        text-align: center;
+        padding: 2rem 0;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+      }
+
+      .header h1 {
+        color: white;
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        animation: fadeInUp 1s ease-out;
+      }
+
+      .header .subtitle {
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 1.1rem;
+        font-weight: 400;
+        animation: fadeInUp 1s ease-out 0.2s both;
+      }
+
+      .info-section {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+        max-width: 1400px;
+        margin: 2rem auto;
+        padding: 0 2rem;
+      }
+
+      .info-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(15px);
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 8px 32px var(--shadow);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        transition: all 0.3s ease;
+        animation: fadeInUp 1s ease-out 0.4s both;
+      }
+
+      .info-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 40px rgba(102, 126, 234, 0.2);
+      }
+
+      .info-card h3 {
+        color: var(--primary);
+        font-size: 1.3rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .info-card .content {
+        color: var(--text-secondary);
+        line-height: 1.6;
+      }
+
+      .team-member {
+        margin: 0.5rem 0;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid rgba(102, 126, 234, 0.1);
+      }
+
+      .team-member:last-child {
+        border-bottom: none;
+      }
+
+      .member-name {
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+
+      .member-id {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+      }
+
+      .container {
+        max-width: 1000px;
+        margin: 2rem auto;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(15px);
+        border-radius: 20px;
+        padding: 2.5rem;
+        box-shadow: 0 20px 60px var(--shadow);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        animation: fadeInUp 1s ease-out 0.6s both;
+      }
+
+      .form-group {
+        margin-bottom: 1.5rem;
+      }
+
+      label {
+        display: block;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+        font-size: 0.95rem;
+      }
+
+      textarea {
+        width: 100%;
+        padding: 1rem;
+        border: 2px solid rgba(102, 126, 234, 0.2);
+        border-radius: 12px;
+        font-size: 0.95rem;
+        font-family: inherit;
+        resize: vertical;
+        transition: all 0.3s ease;
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(10px);
+      }
+
+      textarea:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        transform: translateY(-2px);
+      }
+
+      input[type="file"] {
+        width: 100%;
+        padding: 1rem;
+        border: 2px dashed rgba(102, 126, 234, 0.3);
+        border-radius: 12px;
+        background: rgba(102, 126, 234, 0.05);
+        transition: all 0.3s ease;
+        cursor: pointer;
+      }
+
+      input[type="file"]:hover {
+        border-color: var(--primary);
+        background: rgba(102, 126, 234, 0.1);
+      }
+
+      .params {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin: 1.5rem 0;
+      }
+
+      .param-group {
+        display: flex;
+        flex-direction: column;
+      }
+
+      input[type="number"] {
+        padding: 0.75rem;
+        border: 2px solid rgba(102, 126, 234, 0.2);
+        border-radius: 8px;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(10px);
+      }
+
+      input[type="number"]:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      }
+
+      .submit-btn {
+        background: var(--gradient-primary);
+        color: white;
+        border: none;
+        padding: 1rem 2rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        margin: 2rem auto 0;
+        min-width: 200px;
+      }
+
+      .submit-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 35px rgba(102, 126, 234, 0.4);
+      }
+
+      .submit-btn:active {
+        transform: translateY(-1px);
+      }
+
+      .submit-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        transition: left 0.5s;
+      }
+
+      .submit-btn:hover::before {
+        left: 100%;
+      }
+
+      .result {
+        margin-top: 2rem;
+        background: var(--gradient-accent);
+        padding: 2rem;
+        border-radius: 16px;
+        animation: slideInUp 0.6s ease-out;
+        color: white;
+      }
+
+      .result h2 {
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .result p {
+        background: rgba(255, 255, 255, 0.2);
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 1rem;
+        backdrop-filter: blur(10px);
+        line-height: 1.7;
+      }
+
+      .result h3 {
+        font-size: 1.2rem;
+        margin: 1.5rem 0 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .result pre {
+        background: rgba(255, 255, 255, 0.15);
+        padding: 1.5rem;
+        border-radius: 12px;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        backdrop-filter: blur(10px);
+        overflow-x: auto;
+        font-family: 'Fira Code', monospace;
+      }
+
+      .methodology {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(15px);
+        border-radius: 16px;
+        padding: 2rem;
+        margin: 2rem auto;
+        max-width: 1000px;
+        box-shadow: 0 8px 32px var(--shadow);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        animation: fadeInUp 1s ease-out 0.8s both;
+      }
+
+      .methodology h2 {
+        color: var(--primary);
+        font-size: 1.8rem;
+        text-align: center;
+        margin-bottom: 2rem;
+        font-weight: 700;
+      }
+
+      .methodology-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+      }
+
+      .stage {
+        background: var(--gradient-primary);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+      }
+
+      .stage:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+      }
+
+      .stage h3 {
+        font-size: 1.3rem;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .stage h4 {
+        font-size: 1.1rem;
+        margin: 1rem 0 0.5rem;
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      .stage ul {
+        list-style: none;
+        padding: 0;
+      }
+
+      .stage li {
+        padding: 0.3rem 0;
+        padding-left: 1rem;
+        position: relative;
+      }
+
+      .stage li::before {
+        content: '▶';
+        position: absolute;
+        left: 0;
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 0.8rem;
+      }
+
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(30px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes slideInUp {
+        from {
+          opacity: 0;
+          transform: translateY(50px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @media (max-width: 768px) {
+        .info-section {
+          grid-template-columns: 1fr;
+          gap: 1rem;
+          padding: 0 1rem;
+        }
+        
+        .container {
+          margin: 1rem;
+          padding: 1.5rem;
+        }
+        
+        .header h1 {
+          font-size: 2rem;
+        }
+        
+        .params {
+          grid-template-columns: 1fr;
+        }
+        
+        .methodology {
+          margin: 1rem;
+          padding: 1.5rem;
+        }
+        
+        .methodology-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h1><i class="fas fa-brain"></i> Hybrid Summarizer</h1>
+      <p class="subtitle">BERT Extractive + FLAN-T5 Abstractive Summarization</p>
+    </div>
+
+    <div class="info-section">
+      <div class="info-card">
+        <h3><i class="fas fa-user-graduate"></i> Project Guide</h3>
+        <div class="content">
+          <div class="team-member">
+            <div class="member-name">Dr. Riyanka Manna</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-card">
+        <h3><i class="fas fa-users"></i> Development Team</h3>
+        <div class="content">
+          <div class="team-member">
+            <div class="member-name">Arpita Singh</div>
+            <div class="member-id">AV.EN.U4CSE22203</div>
+          </div>
+          <div class="team-member">
+            <div class="member-name">Kancharapu Suvarna</div>
+            <div class="member-id">AV.EN.U4CSE22227</div>
+          </div>
+          <div class="team-member">
+            <div class="member-name">Pratham</div>
+            <div class="member-id">AV.EN.U4CSE22236</div>
+          </div>
+          <div class="team-member">
+            <div class="member-name">Velamuru Sai Geethika Reddy</div>
+            <div class="member-id">AV.EN.U4CSE22226</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="container">
+      <form action="{{ url_for('summarize') }}" method="post" enctype="multipart/form-data">
+        <div class="form-group">
+          <label><i class="fas fa-edit"></i> Paste text (or upload a PDF / TXT / DOCX)</label>
+          <textarea name="text_input" rows="8" placeholder="Paste your text here for summarization..."></textarea>
+        </div>
+
+        <div class="form-group">
+          <label><i class="fas fa-upload"></i> Or upload file</label>
+          <input type="file" name="file" accept=".pdf,.txt,.docx" />
+        </div>
+
+        <div class="params">
+          <div class="param-group">
+            <label><i class="fas fa-list-ol"></i> Extractive: Sentences to keep</label>
+            <input type="number" name="extract_sentences" min="1" max="10" value="5" />
+          </div>
+
+          <div class="param-group">
+            <label><i class="fas fa-arrows-alt-h"></i> T5 Max Length</label>
+            <input type="number" name="t5_max_length" min="10" max="500" value="150" />
+          </div>
+
+          <div class="param-group">
+            <label><i class="fas fa-compress-alt"></i> T5 Min Length</label>
+            <input type="number" name="t5_min_length" min="5" max="300" value="30" />
+          </div>
+
+          <div class="param-group">
+            <label><i class="fas fa-search"></i> Beam Size</label>
+            <input type="number" name="t5_num_beams" min="1" max="8" value="4" />
+          </div>
+        </div>
+
+        <button type="submit" class="submit-btn">
+          <i class="fas fa-magic"></i>
+          Generate Summary
+        </button>
+      </form>
+
+      {% if summary %}
+      <div class="result">
+        <h2><i class="fas fa-file-alt"></i> Generated Summary</h2>
+        <p>{{ summary }}</p>
+        <h3><i class="fas fa-eye"></i> Original Text (first 5000 characters)</h3>
+        <pre>{{ original }}</pre>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="methodology">
+      <h2><i class="fas fa-cogs"></i> Methodology Overview</h2>
+      <div class="methodology-grid">
+        <div class="stage">
+          <h3><i class="fas fa-extract"></i> Stage 1: Extractive Summarization</h3>
+          <h4>BERT-based Analysis</h4>
+          <ul>
+            <li>Text tokenization and preprocessing</li>
+            <li>BERT N-2 layer embeddings generation</li>
+            <li>K-means clustering of sentence embeddings</li>
+            <li>Selection of sentences closest to centroids</li>
+          </ul>
+        </div>
+        
+        <div class="stage">
+          <h3><i class="fas fa-compress"></i> Stage 2: Abstractive Summarization</h3>
+          <h4>T5 Model Processing</h4>
+          <ul>
+            <li>Input format: 'summarize: ' + extracted text</li>
+            <li>T5-base model with 220M parameters</li>
+            <li>Beam search with configurable length control</li>
+            <li>Human-readable summary generation</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Add smooth scrolling and interactive effects
+      document.addEventListener('DOMContentLoaded', function() {
+        // File input styling
+        const fileInput = document.querySelector('input[type="file"]');
+        fileInput.addEventListener('change', function(e) {
+          if (e.target.files.length > 0) {
+            e.target.style.borderColor = 'var(--success)';
+            e.target.style.background = 'rgba(78, 205, 196, 0.1)';
+          }
+        });
+
+        // Form validation
+        const form = document.querySelector('form');
+        const textarea = document.querySelector('textarea[name="text_input"]');
+        
+        form.addEventListener('submit', function(e) {
+          if (!textarea.value.trim() && !fileInput.files.length) {
+            e.preventDefault();
+            alert('Please provide text input or upload a file.');
+            textarea.focus();
+          }
+        });
+
+        // Add loading state to submit button
+        const submitBtn = document.querySelector('.submit-btn');
+        form.addEventListener('submit', function() {
+          submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+          submitBtn.disabled = true;
+        });
+      });
+    </script>
+  </body>
+</html>
